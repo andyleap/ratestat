@@ -8,6 +8,7 @@ import (
 
 type RateStat struct {
 	Buckets   []uint64
+	curValue  uint64
 	curBucket int32
 	interval  time.Duration
 	length    int32
@@ -16,14 +17,11 @@ type RateStat struct {
 func (rs *RateStat) Log(count uint64) {
 	bucket := atomic.LoadInt32(&rs.curBucket)
 	atomic.AddUint64(&rs.Buckets[bucket], count)
+	atomic.AddUint64(&rs.curValue, count)
 }
 
 func (rs *RateStat) Value() uint64 {
-	val := uint64(0)
-	for k := range rs.Buckets {
-		val += atomic.LoadUint64(&rs.Buckets[k])
-	}
-	return val
+	return atomic.LoadUint64(&rs.curValue)
 }
 
 func (rs *RateStat) manage() {
@@ -33,8 +31,9 @@ func (rs *RateStat) manage() {
 		if bucket >= rs.length {
 			bucket = 0
 		}
-		atomic.StoreUint64(&rs.Buckets[bucket], 0)
 		atomic.StoreInt32(&rs.curBucket, bucket)
+		old := atomic.SwapUint64(&rs.Buckets[bucket], 0)
+		atomic.AddUint64(&rs.curValue, -old)
 	}
 }
 
