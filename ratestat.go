@@ -31,8 +31,8 @@ func (rs *RateStat) manage() {
 		if bucket >= rs.length {
 			bucket = 0
 		}
-		atomic.StoreInt32(&rs.curBucket, bucket)
 		old := atomic.SwapUint64(&rs.Buckets[bucket], 0)
+		atomic.StoreInt32(&rs.curBucket, bucket)
 		atomic.AddUint64(&rs.curValue, -old)
 	}
 }
